@@ -1,0 +1,561 @@
+rm(list=ls())
+#########final#########
+### setwd
+setwd("~/Downloads/dataForUnist/final_data")
+### packages
+if(!require(readxl)) install.packages("readxl"); library(readxl)
+if(!require(dplyr)) install.packages("dplyr"); library(dplyr)
+if(!require(reshape2)) install.packages("reshape2"); library(reshape2)
+if(!require(caret)) install.packages("caret"); library(caret)
+if(!require(data.table)) install.packages("data.table"); library(data.table)
+
+########## data preproc
+##### 1. raw data에서 원하는 품목만 추출후 저장
+### code
+### 원유(역청유) 석유
+code1 <- c(2709)
+
+### make function
+## orderData : 2개의 Sheet를 통합 후 날짜순 정렬
+orderData <- function(x) {
+  ### load data
+  # 리눅스 환경이 아닌경우 path설정 불필요
+  data_1 <- read_excel(path = paste('~/Downloads/dataForUnist/final_data/',x,'.xlsx',sep = ""),sheet = 'Sheet 1')
+  data_2 <- read_excel(path = paste('~/Downloads/dataForUnist/final_data/',x,'.xlsx',sep = ""),sheet = 'Sheet 2')
+  
+  ### rbind
+  data <- rbind(data_1,data_2)
+  
+  ### order by date
+  data <- data[order(data$입출항일시),]
+  
+  ### code1
+  tmp1 <- data[substr(data$품목코드,1,4) %in% code1,]
+  data <- tmp1
+  
+  ### return data
+  return(as.data.frame(data))
+}
+
+## exchange : 각 데이터에서 용적톤_환산 ,운임톤 컬럼 생성
+# 용적톤_환산 = 용적톤*0.883
+# 운임톤 = max(중량톤, 용적톤_환산)
+exchange <- function(x) {
+  x$exchange <- x$용적톤*0.883
+  x$tone <- ifelse(x$중량톤 > x$exchange,x$중량톤,x$exchange)
+  return(x)
+}
+
+# 2007년 데이터는 Sheet가 1만 존재
+data_2007 <- read_excel(path = paste('~/Downloads/dataForUnist/final_data/',2007,'.xlsx',sep = ""),sheet = 'Sheet 1')
+tmp1 <- data_2007[substr(data_2007$품목코드,1,4) %in% code1,]
+data_2007 <- tmp1[order(tmp1$입출항일시),]
+
+data_2008 <- orderData(2008)
+data_2009 <- orderData(2009)
+data_2010 <- orderData(2010)
+data_2011 <- orderData(2011)
+data_2012 <- orderData(2012)
+data_2013 <- orderData(2013)
+data_2014 <- orderData(2014)
+data_2015 <- orderData(2015)
+data_2016 <- orderData(2016)
+data_2017 <- orderData(2017)
+
+data_2007 <- exchange(data_2007)
+data_2008 <- exchange(data_2008)
+data_2009 <- exchange(data_2009)
+data_2010 <- exchange(data_2010)
+data_2011 <- exchange(data_2011)
+data_2012 <- exchange(data_2012)
+data_2013 <- exchange(data_2013)
+data_2014 <- exchange(data_2014)
+data_2015 <- exchange(data_2015)
+data_2016 <- exchange(data_2016)
+data_2017 <- exchange(data_2017)
+
+write.csv(data_2007,'data_2007.csv',row.names=F)
+write.csv(data_2008,'data_2008.csv',row.names=F)
+write.csv(data_2009,'data_2009.csv',row.names=F)
+write.csv(data_2010,'data_2010.csv',row.names=F)
+write.csv(data_2011,'data_2011.csv',row.names=F)
+write.csv(data_2012,'data_2012.csv',row.names=F)
+write.csv(data_2013,'data_2013.csv',row.names=F)
+write.csv(data_2014,'data_2014.csv',row.names=F)
+write.csv(data_2015,'data_2015.csv',row.names=F)
+write.csv(data_2016,'data_2016.csv',row.names=F)
+write.csv(data_2017,'data_2017.csv',row.names=F)
+
+###### load data
+tmpIdx <- 2007:2017
+for (i in tmpIdx) {
+  assign(paste('data_',i,sep = ""), read.csv(paste('data_',i,'.csv',sep="")))
+}
+
+### insert month
+insertMonth <- function(x) {
+  x <- x %>% 
+    mutate(month = as.numeric(substr(x$입출항일시,6,7)))
+  return(x)
+}
+
+data_2007 <- insertMonth(data_2007)
+data_2008 <- insertMonth(data_2008)
+data_2009 <- insertMonth(data_2009)
+data_2010 <- insertMonth(data_2010)
+data_2011 <- insertMonth(data_2011)
+data_2012 <- insertMonth(data_2012)
+data_2013 <- insertMonth(data_2013)
+data_2014 <- insertMonth(data_2014)
+data_2015 <- insertMonth(data_2015)
+data_2016 <- insertMonth(data_2016)
+data_2017 <- insertMonth(data_2017)
+
+### insert quarter
+insertQ <- function(x) {
+  x <- x %>% mutate(quarter = ifelse(x$month %in% c(1,2,3),1,
+                                     ifelse(x$month %in% c(4,5,6),2,
+                                            ifelse(x$month %in% c(7,8,9),3,4))))
+}
+
+data_2007 <- insertQ(data_2007)
+data_2008 <- insertQ(data_2008)
+data_2009 <- insertQ(data_2009)
+data_2010 <- insertQ(data_2010)
+data_2011 <- insertQ(data_2011)
+data_2012 <- insertQ(data_2012)
+data_2013 <- insertQ(data_2013)
+data_2014 <- insertQ(data_2014)
+data_2015 <- insertQ(data_2015)
+data_2016 <- insertQ(data_2016)
+data_2017 <- insertQ(data_2017)
+
+### change function
+# 품목코드는 직관적으로 이해하기 힘들어서 한글설정
+changeName <- function(x) {
+  x$품목코드[substr(x$품목코드,1,4) == 2709] <- "원유(역청유) 석유"
+  return(x)
+}
+data_2007 <- changeName(data_2007)
+data_2008 <- changeName(data_2008)
+data_2009 <- changeName(data_2009)
+data_2010 <- changeName(data_2010)
+data_2011 <- changeName(data_2011)
+data_2012 <- changeName(data_2012)
+data_2013 <- changeName(data_2013)
+data_2014 <- changeName(data_2014)
+data_2015 <- changeName(data_2015)
+data_2016 <- changeName(data_2016)
+data_2017 <- changeName(data_2017)
+
+### agg function
+# 분기별 집계 코드
+data_agg <- function(x,y) {
+  ### sum
+  a0 <- y
+  a1 <- x %>% group_by(quarter) %>% summarise(입항횟수=sum(입항횟수))
+  a2 <- x %>% group_by(quarter) %>% summarise(중량톤=sum(중량톤))
+  a3 <- x %>% group_by(quarter) %>% summarise(용적톤=sum(용적톤))
+  a4 <- x %>% group_by(quarter) %>% summarise(용적환산=sum(exchange))
+  a5 <- x %>% group_by(quarter) %>% summarise(물동량=sum(tone))
+  
+  ### inner_join
+  assign(paste("newdata_",y,sep = ""),cbind(a0,a1)%>% inner_join(a2, by = c("quarter" = "quarter"))%>%
+           inner_join(a3, by = c("quarter" = "quarter"))%>% inner_join(a4, by = c("quarter" = "quarter"))%>% inner_join(a5, by = c("quarter" = "quarter")))
+  return(get(paste("newdata_",y,sep="")))
+}
+
+newdata_2007 <- data_agg(data_2007,2007)
+newdata_2008 <- data_agg(data_2008,2008)
+newdata_2009 <- data_agg(data_2009,2009)
+newdata_2010 <- data_agg(data_2010,2010)
+newdata_2011 <- data_agg(data_2011,2011)
+newdata_2012 <- data_agg(data_2012,2012)
+newdata_2013 <- data_agg(data_2013,2013)
+newdata_2014 <- data_agg(data_2014,2014)
+newdata_2015 <- data_agg(data_2015,2015)
+newdata_2016 <- data_agg(data_2016,2016)
+newdata_2017 <- data_agg(data_2017,2017)
+
+### na = 0
+newdata_2007[is.na(newdata_2007)] <- 0
+newdata_2008[is.na(newdata_2008)] <- 0
+newdata_2009[is.na(newdata_2009)] <- 0
+newdata_2010[is.na(newdata_2010)] <- 0
+newdata_2011[is.na(newdata_2011)] <- 0
+newdata_2012[is.na(newdata_2012)] <- 0
+newdata_2013[is.na(newdata_2013)] <- 0
+newdata_2014[is.na(newdata_2014)] <- 0
+newdata_2015[is.na(newdata_2015)] <- 0
+newdata_2016[is.na(newdata_2016)] <- 0
+newdata_2017[is.na(newdata_2017)] <- 0
+
+### rbind
+newdata_all <- rbind(newdata_2007,newdata_2008,newdata_2009,newdata_2010,
+                      newdata_2011,newdata_2012,newdata_2013,newdata_2014,newdata_2015,
+                      newdata_2016,newdata_2017)
+newdata_all$중량톤 <- NULL
+newdata_all$용적톤 <- NULL
+newdata_all$용적환산 <- NULL
+
+### lead y for train
+newdata_all$target_4 <- lead(newdata_all$물동량,4)
+names(newdata_all)[1] <- "year"
+
+### data partition
+train <- newdata_all[1:40,]
+test <- newdata_all[41:nrow(newdata_all),]
+train$물동량 <- NULL
+test$물동량 <- NULL
+test$target_4 <- NULL
+
+### set answer
+answer <- newdata_all$물동량[newdata_all$year == 2017]
+
+########## data modeling
+## cv option
+cv <- trainControl(method = "repeatedcv", number = 2,repeats = 1, verbose = T)
+
+## param option
+xgb.grid = expand.grid(
+  nrounds = 100,
+  eta = 0.11,
+  gamma = 0.4,
+  max_depth = 3,
+  min_child_weight = 1,
+  colsample_bytree = 1,
+  subsample = 1
+)
+
+## modeling
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+
+## predict
+pred.xgb.submit <- predict(submit.xgb1,test)
+
+## rmse
+## 2017년 물동량을 예측시 의 rmse를 보인다
+Nullmodel <- RMSE(pred.xgb.submit,answer);Nullmodel
+
+#### actual list
+act <- vector()
+act[1] <- sum(newdata_all$물동량[newdata_all$year == 2013])
+act[2] <- sum(newdata_all$물동량[newdata_all$year == 2014])
+act[3] <- sum(newdata_all$물동량[newdata_all$year == 2015])
+act[4] <- sum(newdata_all$물동량[newdata_all$year == 2016])
+act[5] <- sum(newdata_all$물동량[newdata_all$year == 2017])
+pred <- vector()
+
+#### predict 2014
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2013)),]
+test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),]
+train$물동량 <- NULL
+test$물동량 <- NULL
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred[2] <- sum(pred.xgb.submit)
+
+#### predict 2015
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2014)),]
+test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),]
+train$물동량 <- NULL
+test$물동량 <- NULL
+test$target_4 <- NULL
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred[3] <- sum(pred.xgb.submit)
+
+#### predict 2016
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2015)),]
+test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),]
+train$물동량 <- NULL
+test$물동량 <- NULL
+test$target_4 <- NULL
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred[4] <- sum(pred.xgb.submit)
+
+#### predict 2017
+### data partition
+train <- newdata_all[1:(max(which(newdata_all$year == 2016))),]
+test <- newdata_all[(max(which(newdata_all$year == 2016))+1):nrow(newdata_all),]
+train$물동량 <- NULL
+test$물동량 <- NULL
+test$target_4 <- NULL
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred[5] <- sum(pred.xgb.submit)
+### 2013~2017년 물동량 실제
+act
+### 2013~2017년 물동량예측
+pred
+
+### 외부변수 삽입
+### load data
+data1 <- read.csv('2008-2017_var1.csv',stringsAsFactors = FALSE)
+data2 <- read.csv('korea.csv',stringsAsFactors = FALSE)
+data3 <- read.csv('factory.csv',stringsAsFactors = FALSE)
+data4 <- fread('fac2.txt')
+names(data4) <- c("year","month","경유 매수량","경유 수출량","나프타 내수량","나프타 수출량")
+data4 <- as.data.frame(data4)
+data5 <- fread('kore2.csv')
+data5 <- as.data.frame(data5)
+data1$Total.OECD.Liquid.Fuels.Consumption <- NULL
+data1$Total.non.OECD.Liquid.Fuels.Consumption<- NULL
+names(data3)[1:2] <- c("year","month")
+names(data5)[1:2] <- c("year","month")
+
+### insert q
+data1 <- insertQ(data1)
+data2 <- insertQ(data2)
+#### data2의 경우 2018년 2월까지 존재 -> 삭제
+data2 <- na.omit(data2)
+data2 <- data2[1:132,]
+data3 <- insertQ(data3)
+data4 <- insertQ(data4)
+data5 <- insertQ(data5)
+
+names(data4)[3:6] <- c("v1","v2","v3","v4")
+c0 <- data1 %>% group_by(year,quarter) %>% summarise(두바이유= sum(두바이유))
+c1 <- data1 %>% group_by(year,quarter) %>% summarise(브렌트유= sum(브렌트유))
+c2 <- data1 %>% group_by(year,quarter) %>% summarise(서부텍사스중질유= sum(서부텍사스중질유))
+c3 <- data1 %>% group_by(year,quarter) %>% summarise(OPEC.Crude.Oil= sum(OPEC.Crude.Oil))
+c4 <- data1 %>% group_by(year,quarter) %>% summarise(s.oil.주가.평균 = sum(s.oil.주가.평균))
+c5 <- data1 %>% group_by(year,quarter) %>% summarise(sk.이노베이션.주가.평균 = sum(sk.이노베이션.주가.평균))
+c6 <- data1 %>% group_by(year,quarter) %>% summarise(원달러환율 = sum(원달러환율))
+c7 <- data1 %>% group_by(year,quarter) %>% summarise(금가격 = sum(금가격))
+c8 <- data1 %>% group_by(year,quarter) %>% summarise(Total.World.Liquid.Fuels.Consumption = sum(Total.World.Liquid.Fuels.Consumption))
+c9 <- data2 %>% group_by(year,quarter) %>% summarise(price = sum(price))
+c10 <- data3 %>% group_by(year,quarter) %>% summarise(capacity = sum(U.S..Percent.Utilization.of.Refinery.Operable.Capacity))
+c11 <- data4 %>% group_by(year,quarter) %>% summarise(v1 = sum(v1))
+c12 <- data4 %>% group_by(year,quarter) %>% summarise(v2 = sum(v2))
+c13 <- data4 %>% group_by(year,quarter) %>% summarise(v3 = sum(v3))
+c14 <- data4 %>% group_by(year,quarter) %>% summarise(v4 = sum(v4))
+c15 <- data5 %>% group_by(year,quarter) %>% summarise(휘발유 = sum(휘발유))
+c16 <- data5 %>% group_by(year,quarter) %>% summarise(등유 = sum(등유))
+c17 <- data5 %>% group_by(year,quarter) %>% summarise(경유 = sum(경유))
+c18 <- data5 %>% group_by(year,quarter) %>% summarise(경질중유 = sum(경질중유))
+c19 <- data5 %>% group_by(year,quarter) %>% summarise(중유 = sum(중유))
+c20 <- data5 %>% group_by(year,quarter) %>% summarise(벙커C유 = sum(벙커C유))
+c21 <- data5 %>% group_by(year,quarter) %>% summarise(납사 = sum(납사))
+c22 <- data5 %>% group_by(year,quarter) %>% summarise(용제 = sum(용제))
+c23 <- data5 %>% group_by(year,quarter) %>% summarise(항공유 = sum(항공유))
+c24 <- data5 %>% group_by(year,quarter) %>% summarise(LPG = sum(LPG))
+c25 <- data5 %>% group_by(year,quarter) %>% summarise(아스팔트 = sum(아스팔트))
+c26 <- data5 %>% group_by(year,quarter) %>% summarise(윤활유 = sum(윤활유))
+c27 <- data5 %>% group_by(year,quarter) %>% summarise(기타제품 = sum(기타제품))
+c28 <- data5 %>% group_by(year,quarter) %>% summarise(부생연료유 = sum(부생연료유))
+
+### inner_join
+newdata_all <- inner_join(newdata_all,c0) %>% inner_join(c1) %>% inner_join(c2)%>% inner_join(c3)%>% inner_join(c4)%>%
+  inner_join(c5)%>% inner_join(c6)%>% inner_join(c7)%>% inner_join(c8)%>% inner_join(c9)%>% inner_join(c10) %>% 
+  inner_join(c11)%>% inner_join(c12)%>% inner_join(c13)%>% inner_join(c14)%>% inner_join(c15)%>% inner_join(c16) %>% 
+  inner_join(c17)%>% inner_join(c18)%>% inner_join(c19)%>% inner_join(c20)%>% inner_join(c21)%>% inner_join(c22) %>% 
+  inner_join(c23)%>% inner_join(c24)%>% inner_join(c25)%>% inner_join(c26)%>% inner_join(c27)%>% inner_join(c28)
+newdata_all$quarter <- as.factor(newdata_all$quarter)
+
+########## data modeling
+## cv option
+cv <- trainControl(method = "repeatedcv", number = 2,repeats = 1, verbose = T)
+
+## param option
+xgb.grid = expand.grid(
+  nrounds = c(50,60,70,80,90,100),
+  eta = 0.11,
+  gamma = 0.4,
+  max_depth = 3,
+  min_child_weight = 1,
+  colsample_bytree = 1,
+  subsample = 1
+)
+
+## partition
+nrow(newdata_all)
+train <- newdata_all[1:36,]
+test <- newdata_all[37:nrow(newdata_all),]
+## modeling
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+## predict
+pred.xgb.submit <- predict(submit.xgb1,test)
+
+## rmse
+## 외부 변수 삽입후 rmse가 8829183에서 4808359 감소하였다. 찾은 변수의 효과 확인
+Nullmodel
+RMSE(pred.xgb.submit,answer)
+
+### col idx
+colIdx <- names(newdata_all)
+
+#### actual list
+act1 <- vector()
+act1[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
+act1[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
+act1[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
+act1[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
+pred1 <- vector()
+
+#### predict 2015
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred1[2] <- sum(pred.xgb.submit)
+
+#### predict 2016
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred1[3] <- sum(pred.xgb.submit)
+
+#### predict 2017
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred1[4] <- sum(pred.xgb.submit)
+varI <- varImp(submit.xgb1)
+
+act1
+pred1
+
+### col idx
+colIdx <- c("Total.World.Liquid.Fuels.Consumption","금가격",
+            "등유",
+            "금가격",
+            "v1",
+            "capacity",
+            "두바이유",
+            "휘발유",
+            "sk.이노베이션.주가.평균",
+            "부생연료유",
+            "서부텍사스중질유",
+            "s.oil.주가.평균",
+            "물동량",
+            "price",
+            "target_4","year","quarter")
+
+#### actual list
+act2 <- vector()
+act2[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
+act2[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
+act2[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
+act2[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
+pred2 <- vector()
+
+#### predict 2015
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred2[2] <- sum(pred.xgb.submit)
+
+#### predict 2016
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred2[3] <- sum(pred.xgb.submit)
+
+#### predict 2017
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred2[4] <- sum(pred.xgb.submit)
+
+act2
+pred2
+
+### col idx
+colIdx <- c("물동량","두바이유","OPEC.Crude.Oil","sk.이노베이션.주가.평균","s.oil.주가.평균","원달러환율",
+            "금가격","Total.World.Liquid.Fuels.Consumption","v1","v2","v3","v4","target_4","year","quarter","벙커C유")
+colIdx
+#### actual list
+act3 <- vector()
+act3[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
+act3[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
+act3[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
+act3[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
+pred3 <- vector()
+
+#### predict 2015
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+RMSE(pred.xgb.submit,test$target_4)
+pred3[2] <- sum(pred.xgb.submit)
+
+#### predict 2016
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred3[3] <- sum(pred.xgb.submit)
+
+#### predict 2017
+### data partition
+train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
+test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
+submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+pred.xgb.submit <- predict.train(submit.xgb1,test)
+pred3[4] <- sum(pred.xgb.submit)
+
+act
+pred
+act1
+pred1
+act2
+pred2
+act3
+pred3
+### end
+### xgboost based bagging
+### xgboost based bagging
+# a = formula
+# b = train data
+# c = test data
+# d = number of tree for bagging
+# e = cv option for each xgboost model
+# f = param option for each xgboost model
+bagXGBoost <- function(a,b,c,d,e,f) {
+  train.rmse <- vector()
+  pred.test <- list()
+  # train by each model
+  for (i in 1:d) {
+    cat(paste('###############bagging',i,"###############",sep=""),"\n")
+    set.seed(i)
+    idx <- sample(1:nrow(b),nrow(b),replace = T)
+    train <- b[idx,]
+    basemodel <- train(a, train, method = "xgbTree", trControl = e, tuneGrid = f)
+    train.rmse[i] <- basemodel$results[colnames(basemodel$results) == "RMSE"]
+    pred.test[[i]] <- predict.train(basemodel,c)
+  }
+  # predict average
+  predict.test <- data.frame(rep(0,nrow(c)))
+  for (i in 1:d) {
+    predict.test[,i] <-pred.test[[i]]
+  }
+  test_pred <- rowMeans(predict.test)
+  cat(' --------------------------------------------','\n','train_rmse : ',mean(unlist(train.rmse)),"\n",'test_rmse : ',RMSE(test_pred,c$lag_1),"\n",
+      '--------------------------------------------','\n')
+  # result
+  return(test_pred)
+}
+cv <- trainControl(method = "repeatedcv", number = 2,repeats = 1)
+tune <- expand.grid(nrounds = 120,eta = 0.11,gamma = 0.4,max_depth = 3,
+                 min_child_weight = 1,colsample_bytree = 1,subsample = 1)
+bagXGBoost(lag_1~., train, test, 10, cv, tune)
+###
