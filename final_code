@@ -203,8 +203,8 @@ newdata_all$target_4 <- lead(newdata_all$물동량,4)
 names(newdata_all)[1] <- "year"
 
 ### data partition
-train <- newdata_all[1:40,]
-test <- newdata_all[41:nrow(newdata_all),]
+train <- newdata_all[1:36,]
+test <- newdata_all[37:40,]
 train$물동량 <- NULL
 test$물동량 <- NULL
 test$target_4 <- NULL
@@ -289,8 +289,10 @@ submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trContr
 pred.xgb.submit <- predict.train(submit.xgb1,test)
 pred[5] <- sum(pred.xgb.submit)
 ### 2013~2017년 물동량 실제
+## [1] 432914720 418411191 428235953 447828374 454989819
 act
 ### 2013~2017년 물동량예측
+## [1]        NA 438786496 415873856 430648176 422387680
 pred
 
 ### 외부변수 삽입
@@ -374,108 +376,116 @@ xgb.grid = expand.grid(
 
 ## partition
 nrow(newdata_all)
-train <- newdata_all[1:36,]
-test <- newdata_all[37:nrow(newdata_all),]
+train <- newdata_all[1:32,]
+train %>% tail
+test <- newdata_all[33:36,]
+test %>% tail
 ## modeling
 submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
 ## predict
 pred.xgb.submit <- predict(submit.xgb1,test)
 
 ## rmse
-## 외부 변수 삽입후 rmse가 8829183에서 4808359 감소하였다. 찾은 변수의 효과 확인
+## 외부 변수 삽입후 rmse가 8199872에서 5388826로 감소하였다. 찾은 변수의 효과 확인
 Nullmodel
 RMSE(pred.xgb.submit,answer)
+# 
+# ### col idx
+# colIdx <- names(newdata_all)
 
-### col idx
-colIdx <- names(newdata_all)
+####################################################################
+########################### 최적변수탐색 ###########################
+####################################################################
+####### 1. 모든변수사용시
 
-#### actual list
-act1 <- vector()
-act1[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
-act1[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
-act1[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
-act1[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
-pred1 <- vector()
+# #### actual list
+# act1 <- vector()
+# act1[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
+# act1[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
+# act1[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
+# act1[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
+# pred1 <- vector()
+# 
+# #### predict 2015
+# ### data partition
+# train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
+# test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
+# submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+# pred.xgb.submit <- predict.train(submit.xgb1,test)
+# pred1[2] <- sum(pred.xgb.submit)
+# 
+# #### predict 2016
+# ### data partition
+# train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
+# test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
+# submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+# pred.xgb.submit <- predict.train(submit.xgb1,test)
+# pred1[3] <- sum(pred.xgb.submit)
+# 
+# #### predict 2017
+# ### data partition
+# train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
+# test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
+# submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+# pred.xgb.submit <- predict.train(submit.xgb1,test)
+# pred1[4] <- sum(pred.xgb.submit)
+# varI <- varImp(submit.xgb1)
+# 
+# act1
+# pred1
+####### 2. 변수중요도 10이상
+# ### col idx
+# colIdx <- c("Total.World.Liquid.Fuels.Consumption","금가격",
+#             "등유",
+#             "금가격",
+#             "v1",
+#             "capacity",
+#             "두바이유",
+#             "휘발유",
+#             "sk.이노베이션.주가.평균",
+#             "부생연료유",
+#             "서부텍사스중질유",
+#             "s.oil.주가.평균",
+#             "물동량",
+#             "price",
+#             "target_4","year","quarter")
+# 
+# #### actual list
+# act2 <- vector()
+# act2[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
+# act2[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
+# act2[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
+# act2[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
+# pred2 <- vector()
+# 
+# #### predict 2015
+# ### data partition
+# train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
+# test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
+# submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+# pred.xgb.submit <- predict.train(submit.xgb1,test)
+# pred2[2] <- sum(pred.xgb.submit)
+# 
+# #### predict 2016
+# ### data partition
+# train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
+# test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
+# submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+# pred.xgb.submit <- predict.train(submit.xgb1,test)
+# pred2[3] <- sum(pred.xgb.submit)
+# 
+# #### predict 2017
+# ### data partition
+# train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
+# test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
+# submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
+# pred.xgb.submit <- predict.train(submit.xgb1,test)
+# pred2[4] <- sum(pred.xgb.submit)
+# 
+# act2
+# pred2
 
-#### predict 2015
-### data partition
-train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
-test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
-submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
-pred.xgb.submit <- predict.train(submit.xgb1,test)
-pred1[2] <- sum(pred.xgb.submit)
-
-#### predict 2016
-### data partition
-train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
-test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
-submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
-pred.xgb.submit <- predict.train(submit.xgb1,test)
-pred1[3] <- sum(pred.xgb.submit)
-
-#### predict 2017
-### data partition
-train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
-test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
-submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
-pred.xgb.submit <- predict.train(submit.xgb1,test)
-pred1[4] <- sum(pred.xgb.submit)
-varI <- varImp(submit.xgb1)
-
-act1
-pred1
-
-### col idx
-colIdx <- c("Total.World.Liquid.Fuels.Consumption","금가격",
-            "등유",
-            "금가격",
-            "v1",
-            "capacity",
-            "두바이유",
-            "휘발유",
-            "sk.이노베이션.주가.평균",
-            "부생연료유",
-            "서부텍사스중질유",
-            "s.oil.주가.평균",
-            "물동량",
-            "price",
-            "target_4","year","quarter")
-
-#### actual list
-act2 <- vector()
-act2[1] <- sum(newdata_all$물동량[newdata_all$year == 2014])
-act2[2] <- sum(newdata_all$물동량[newdata_all$year == 2015])
-act2[3] <- sum(newdata_all$물동량[newdata_all$year == 2016])
-act2[4] <- sum(newdata_all$물동량[newdata_all$year == 2017])
-pred2 <- vector()
-
-#### predict 2015
-### data partition
-train <- newdata_all[1:max(which(newdata_all$year == 2013)),colIdx]
-test <- newdata_all[(max(which(newdata_all$year == 2013))+1):(max(which(newdata_all$year == 2013))+4),colIdx]
-submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
-pred.xgb.submit <- predict.train(submit.xgb1,test)
-pred2[2] <- sum(pred.xgb.submit)
-
-#### predict 2016
-### data partition
-train <- newdata_all[1:max(which(newdata_all$year == 2014)),colIdx]
-test <- newdata_all[(max(which(newdata_all$year == 2014))+1):(max(which(newdata_all$year == 2014))+4),colIdx]
-submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
-pred.xgb.submit <- predict.train(submit.xgb1,test)
-pred2[3] <- sum(pred.xgb.submit)
-
-#### predict 2017
-### data partition
-train <- newdata_all[1:max(which(newdata_all$year == 2015)),colIdx]
-test <- newdata_all[(max(which(newdata_all$year == 2015))+1):(max(which(newdata_all$year == 2015))+4),colIdx]
-submit.xgb1 <- train(target_4~. -year, data = train, method = "xgbTree", trControl = cv, tuneGrid = xgb.grid)
-pred.xgb.submit <- predict.train(submit.xgb1,test)
-pred2[4] <- sum(pred.xgb.submit)
-
-act2
-pred2
-
+############## 3. 변수 임의 조합, best model
 ### col idx
 colIdx <- c("물동량","두바이유","OPEC.Crude.Oil","sk.이노베이션.주가.평균","s.oil.주가.평균","원달러환율",
             "금가격","Total.World.Liquid.Fuels.Consumption","v1","v2","v3","v4","target_4","year","quarter","벙커C유")
@@ -515,14 +525,10 @@ pred3[4] <- sum(pred.xgb.submit)
 
 act
 pred
-act1
-pred1
-act2
-pred2
+
 act3
 pred3
-### end
-### xgboost based bagging
+
 ### xgboost based bagging
 # a = formula
 # b = train data
@@ -556,6 +562,7 @@ bagXGBoost <- function(a,b,c,d,e,f) {
 }
 cv <- trainControl(method = "repeatedcv", number = 2,repeats = 1)
 tune <- expand.grid(nrounds = 120,eta = 0.11,gamma = 0.4,max_depth = 3,
-                 min_child_weight = 1,colsample_bytree = 1,subsample = 1)
+                    min_child_weight = 1,colsample_bytree = 1,subsample = 1)
 bagXGBoost(lag_1~., train, test, 10, cv, tune)
 ###
+### end
